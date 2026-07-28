@@ -96,6 +96,12 @@ def extract_resume_text(file: FileInput, filename: str | None = None) -> str:
 
 
 if __name__ == "__main__":
-    resume_text = extract_resume_text("test.docx")
-    print(resume_text[:1000])
+    input_directory = Path("raw_resume")
+    files = [
+        f for f in input_directory.iterdir() 
+        if f.is_file()
+    ]
+    for path in files:
+        resume_text = extract_resume_text(path, filename = path)
+        print(resume_text[:1000])
 
