@@ -76,3 +76,10 @@ plt.ylabel('Actual Job Role')
 #plt.tight_layout()
 plt.show()
 
+# Save the model and vectorizer to disk
+import joblib
+
+artifacts = {
+    "tfidf": tfidf,
+    "model": naiveBayes}
+joblib.dump(artifacts, "ResuMatch.pkl")
