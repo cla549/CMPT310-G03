@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd 
 import matplotlib.pyplot as plt
 import re
@@ -46,22 +47,78 @@ def pdf_to_string(pdf_path: str) -> str:
 
 
 
-# Import the Naive Bayes model trained earlier
+# Import the model trained earlier
 import joblib
-artifacts = joblib.load("ResuMatch.pkl")
-loaded_vectorizer = artifacts["tfidf"]
+artifacts = joblib.load("ResuMatch_LSV.pkl")
+
+loaded_tfidf = artifacts["tfidf"]
 ResuMatch_model = artifacts["model"]
+loaded_vectorizer = artifacts["vectorizer"]
+
+# Import full dataset
+df = pd.read_csv('data/Resume_Dataset.csv')
+dataset_sample = df["Text"][1000]
+#print(dataset_sample)
 
 # Import a sample resume and clean it
 # Used some samples from "raw_resume" folder, renamed them for convenience
-sample_title = "Sample_Resumes/Sample_Resume3.pdf"
+sample_title = "Sample_Resumes/Sample_Resume2.pdf"
 straight_resume_text = pdf_to_string(sample_title)
 #print(resume_text) # To check the output is correct
 
 # Transform the new resume data to clear it using TFIDF
-from sklearn.feature_extraction.text import TfidfVectorizer
-vectorized_text = loaded_vectorizer.transform([straight_resume_text])
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.feature_extraction.text import CountVectorizer
+
+vectorized_text = loaded_vectorizer.transform([straight_resume_text]) # Choose this for an imported PDF
+#vectorized_text = loaded_vectorizer.transform([dataset_sample]) # Choose this for a sample from the dataset
+tfidf_text = loaded_tfidf.transform(vectorized_text)
+
+# Labels for the jobs
+job_labels = ["Business Analyst", "Business Intelligence/Object", "Datawarehousing", "Java Developer", "Network/Systems Admin", "Project Manager", "Recruiter", "SQL Developer", "Web Developer"]
 
 # Predict the job classification of the resume
-resume_prediction = ResuMatch_model.predict(vectorized_text)
-print(f"The given resume would be a great {resume_prediction}.")
+resume_prediction = ResuMatch_model.predict(vectorized_text)[0]
+
+# Calculate the distance of the resume from the 9 possible job options
+distance_score = ResuMatch_model.decision_function(vectorized_text)[0]
+
+
+################################################################################################
+# Print the results of the distance calculation and prediction
+print(f"\nThe given resume would be a great {resume_prediction}.\n")
+
+# Using a sigmoid to calculate the percent likeness from the distance score
+def sigmoid_percent(x):
+    return 100 / (1 + np.exp(-x * 0.1))
+
+best_options = []
+worst_options = []
+
+# Create lists of the best and worst job options
+for i in range(len(job_labels)):
+    score = float(distance_score[i])
+    if score > 0:
+        best_options.append((score, job_labels[i]))
+    else:
+        worst_options.append((score, job_labels[i]))
+
+# Sorts the options based on the scores (high to low)
+final_best_options = sorted(best_options, reverse = True)
+final_worst_options = sorted(worst_options, reverse = True)
+
+print("=== Distance scores of your resume ==")
+print("\nBest options:")
+for i in range(len(final_best_options)):
+    percent = sigmoid_percent(final_best_options[i][0])
+    print(f'{i+1}. {final_best_options[i][1]} => {percent:.2f}%')
+print("\nWorst options:")
+for i in range(len(final_worst_options)):
+    percent = sigmoid_percent(final_worst_options[i][0])
+    print(f'{i+1}. {final_worst_options[i][1]} => {percent:.2f}%')
+
+print() # for spacing
+
+
+
+
