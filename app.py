@@ -1,6 +1,10 @@
 import streamlit as st
-from resume_reader import extract_resume_text
+from resume_reader_new import extract_resume_text
 from data_cleaning import clean_text
+from job_classifier import load_classifier, predict_job_role
+from resume_matcher import calculate_match, compare_skills, format_skill_name
+
+model, tfidf = load_classifier()
 
 st.set_page_config(
     page_title = "🤖 ResuMatch",
@@ -49,6 +53,11 @@ if analyze_button:
         try:
             resume_text = extract_resume_text(resume_file)
             cleaned_resume = clean_text(resume_text)
+            predicted_role = predict_job_role(
+                cleaned_resume,
+                model,
+                tfidf
+            )
             cleaned_job = clean_text(job_description)
 
             with upload_tab:
@@ -60,20 +69,17 @@ if analyze_button:
                 with st.expander("Cleaned Resume"):
                     st.text(cleaned_resume[:2000])
 
-            # Placeholder results for now
-            match_score = 82
-            predicted_role = "Data Scientist"
+            
+            match_score = calculate_match(
+                cleaned_resume,
+                cleaned_job
+            )
+            match_score = round(match_score, 1)
 
-            matched_skills = [
-                "Python",
-                "SQL",
-                "Machine Learning",
-            ]
-
-            missing_skills = [
-                "Docker",
-                "AWS",
-            ]
+            matched_skills, missing_skills = compare_skills(
+                cleaned_resume,
+                cleaned_job
+            )
 
             with results_tab:
                 st.success("Analysis completed successfully.")
@@ -86,9 +92,9 @@ if analyze_button:
 
                 st.progress(match_score / 100)
 
-                if match_score >= 75:
+                if match_score >= 45:
                     st.success("Overall result: Good Match")
-                elif match_score >= 50:
+                elif match_score >= 25:
                     st.warning("Overall result: Moderate Match")
                 else:
                     st.error("Overall result: Poor Match")
@@ -104,8 +110,15 @@ if analyze_button:
                 with score_column:
                     st.subheader("Match Summary")
                     st.write(
-                        f"The resume matches approximately "
-                        f"**{match_score}%** of the job description."
+                        f"""
+                    The uploaded resume has a compatibility score of 
+                    **{match_score}%** with the provided job description. 
+
+                    The predicted job role is **{predicted_role}**.
+
+                    {len(matched_skills)} required skills were found in the resume, 
+                    while {len(missing_skills)} requiredskills were not detected. 
+                    """ 
                     )
 
                 st.divider()
@@ -113,16 +126,16 @@ if analyze_button:
                 matched_column, missing_column = st.columns(2)
 
                 with matched_column:
-                    st.subheader("Matched Skills")
+                    st.subheader(f"Matched Skills ({len(matched_skills)})")
 
                     for skill in matched_skills:
-                        st.write(f"✅ {skill}")
+                        st.write(f"✅ {format_skill_name(skill)}")
 
                 with missing_column:
-                    st.subheader("Missing Skills")
+                    st.subheader(f"Missing Skills ({len(missing_skills)})")
 
                     for skill in missing_skills:
-                        st.write(f"❌ {skill}")
+                        st.write(f"❌ {format_skill_name(skill)}")
 
         except ValueError as error:
             st.error(str(error))
