@@ -56,68 +56,149 @@ ResuMatch_model = artifacts["model"]
 loaded_vectorizer = artifacts["vectorizer"]
 
 # Import full dataset
-df = pd.read_csv('data/Resume_Dataset.csv')
-dataset_sample = df["Text"][1000]
+#df = pd.read_csv('data/Resume_Dataset.csv')
+#dataset_sample = df["Text"][1000]
 #print(dataset_sample)
 
 # Import a sample resume and clean it
 # Used some samples from "raw_resume" folder, renamed them for convenience
-sample_title = "Sample_Resumes/Sample_Resume2.pdf"
-straight_resume_text = pdf_to_string(sample_title)
+#sample_title = "Sample_Resumes/Sample_Resume2.pdf"
+#straight_resume_text = pdf_to_string(sample_title)
 #print(resume_text) # To check the output is correct
 
 # Transform the new resume data to clear it using TFIDF
-from sklearn.feature_extraction.text import TfidfTransformer
-from sklearn.feature_extraction.text import CountVectorizer
+#from sklearn.feature_extraction.text import TfidfTransformer
+#from sklearn.feature_extraction.text import CountVectorizer
 
-vectorized_text = loaded_vectorizer.transform([straight_resume_text]) # Choose this for an imported PDF
+#vectorized_text = loaded_vectorizer.transform([straight_resume_text]) # Choose this for an imported PDF
 #vectorized_text = loaded_vectorizer.transform([dataset_sample]) # Choose this for a sample from the dataset
-tfidf_text = loaded_tfidf.transform(vectorized_text)
+#tfidf_text = loaded_tfidf.transform(vectorized_text)
 
 # Labels for the jobs
-job_labels = ["Business Analyst", "Business Intelligence/Object", "Datawarehousing", "Java Developer", "Network/Systems Admin", "Project Manager", "Recruiter", "SQL Developer", "Web Developer"]
+job_labels = [
+    "Business Analyst", 
+    "Business Intelligence/Object", 
+    "Datawarehousing", 
+    "Java Developer", 
+    "Network/Systems Admin", 
+    "Project Manager", 
+    "Recruiter", 
+    "SQL Developer", 
+    "Web Developer"
+    ]
+
+ROLE_DISPLAY_NAMES = {
+    "Business Analyst (BA) Resumes": "Business Analyst",
+    "Business Intelligence, Business Object Resumes": "Business Intelligence/Object",
+    "Datawarehousing, ETL, Informatica Resumes": "Datawarehousing",
+    "Java Developers/Architects Resumes": "Java Developer",
+    "Network and Systems Administrators Resumes": "Network/Systems Admin",
+    "Project Manager Resumes": "Project Manager",
+    "Recruiter Resumes": "Recruiter",
+    "SQL Developers Resumes": "SQL Developer",
+    "Web Developer Resumes": "Web Developer",
+}
 
 # Predict the job classification of the resume
-resume_prediction = ResuMatch_model.predict(vectorized_text)[0]
+#resume_prediction = ResuMatch_model.predict(vectorized_text)[0]
 
 # Calculate the distance of the resume from the 9 possible job options
-distance_score = ResuMatch_model.decision_function(vectorized_text)[0]
+#distance_score = ResuMatch_model.decision_function(vectorized_text)[0]
 
 
 ################################################################################################
 # Print the results of the distance calculation and prediction
-print(f"\nThe given resume would be a great {resume_prediction}.\n")
+#print(f"\nThe given resume would be a great {resume_prediction}.\n")
 
 # Using a sigmoid to calculate the percent likeness from the distance score
 def sigmoid_percent(x):
     return 100 / (1 + np.exp(-x * 0.1))
 
-best_options = []
-worst_options = []
+#best_options = []
+#worst_options = []
 
 # Create lists of the best and worst job options
-for i in range(len(job_labels)):
-    score = float(distance_score[i])
-    if score > 0:
-        best_options.append((score, job_labels[i]))
-    else:
-        worst_options.append((score, job_labels[i]))
+#for i in range(len(job_labels)):
+#    score = float(distance_score[i])
+#    if score > 0:
+#        best_options.append((score, job_labels[i]))
+#    else:
+#        worst_options.append((score, job_labels[i]))
 
 # Sorts the options based on the scores (high to low)
-final_best_options = sorted(best_options, reverse = True)
-final_worst_options = sorted(worst_options, reverse = True)
+#final_best_options = sorted(best_options, reverse = True)
+#final_worst_options = sorted(worst_options, reverse = True)
 
-print("=== Distance scores of your resume ==")
-print("\nBest options:")
-for i in range(len(final_best_options)):
-    percent = sigmoid_percent(final_best_options[i][0])
-    print(f'{i+1}. {final_best_options[i][1]} => {percent:.2f}%')
-print("\nWorst options:")
-for i in range(len(final_worst_options)):
-    percent = sigmoid_percent(final_worst_options[i][0])
-    print(f'{i+1}. {final_worst_options[i][1]} => {percent:.2f}%')
+#print("=== Distance scores of your resume ==")
+#print("\nBest options:")
+#for i in range(len(final_best_options)):
+#    percent = sigmoid_percent(final_best_options[i][0])
+#    print(f'{i+1}. {final_best_options[i][1]} => {percent:.2f}%')
+#print("\nWorst options:")
+#for i in range(len(final_worst_options)):
+#    percent = sigmoid_percent(final_worst_options[i][0])
+#    print(f'{i+1}. {final_worst_options[i][1]} => {percent:.2f}%')
 
-print() # for spacing
+#print() # for spacing
+
+
+def evaluate_role(resume_text, selected_role):
+    vectorized_text = loaded_vectorizer.transform([resume_text])
+
+    distance_scores = ResuMatch_model.decision_function(
+        vectorized_text
+    )[0]
+
+    for i in range(len(ResuMatch_model.classes_)):
+        model_role = ResuMatch_model.classes_[i]
+
+        display_role = ROLE_DISPLAY_NAMES.get(
+            model_role,
+            model_role
+        )
+
+        if display_role == selected_role:
+            score = distance_scores[i]
+            return sigmoid_percent(float(score))
+
+    raise ValueError(
+        f"Unknown job role: {selected_role}"
+    )
+
+def predict_best_role(resume_text):
+    vectorized_text = loaded_vectorizer.transform([resume_text])
+    prediction = ResuMatch_model.predict(vectorized_text)[0]
+    return ROLE_DISPLAY_NAMES.get(prediction, prediction)
+
+def get_all_role_scores(resume_text):
+    vectorized_text = loaded_vectorizer.transform([resume_text])
+
+    distance_scores = ResuMatch_model.decision_function(
+        vectorized_text
+    )[0]
+
+    results = []
+
+    for i in range(len(ResuMatch_model.classes_)):
+        model_role = ResuMatch_model.classes_[i]
+        score = distance_scores[i]
+
+        display_role = ROLE_DISPLAY_NAMES.get(
+            model_role,
+            model_role
+        )
+
+        percent = sigmoid_percent(float(score))
+
+        results.append(
+            (display_role, round(percent, 1))
+        )
+
+    return sorted(
+        results,
+        key=lambda x: x[1],
+        reverse=True
+    )
 
 
 
