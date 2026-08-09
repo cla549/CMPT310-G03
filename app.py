@@ -1,7 +1,5 @@
 import streamlit as st
-from resume_reader_new import extract_resume_text
-from data_cleaning import clean_text
-from Resume_Evaluator import evaluate_role, predict_best_role, get_all_role_scores
+from ResuMatch_functions import ResuMatch_prediction, sigmoid_percent
 
 
 st.set_page_config(
@@ -47,6 +45,17 @@ with upload_tab:
         type = "primary",
     )
 
+ROLE_DISPLAY_NAMES = {
+    "Business Analyst (BA) Resumes": "Business Analyst",
+    "Business Intelligence, Business Object Resumes": "Business Intelligence/Object",
+    "Datawarehousing, ETL, Informatica Resumes": "Datawarehousing",
+    "Java Developers/Architects Resumes": "Java Developer",
+    "Network and Systems Administrators Resumes": "Network/Systems Admin",
+    "Project Manager Resumes": "Project Manager",
+    "Recruiter Resumes": "Recruiter",
+    "SQL Developers Resumes": "SQL Developer",
+    "Web Developer Resumes": "Web Developer",
+}
 
 
 if analyze_button:
@@ -55,34 +64,51 @@ if analyze_button:
 
     else:
         try:
-            resume_text = extract_resume_text(resume_file)
-            cleaned_resume = clean_text(resume_text)
-            match_score = evaluate_role(
-                cleaned_resume,
-                job_role
+            prediction, score_label_list = ResuMatch_prediction(
+                "ResuMatch_LSV.pkl",
+                resume_file
             )
-            match_score = round(match_score, 1)
 
-            predicted_role = predict_best_role(cleaned_resume)
+            all_role_scores =[]
 
-            all_role_scores = get_all_role_scores(cleaned_resume)
+            for score, role in score_label_list:
+                percent = sigmoid_percent(score)
+                all_role_scores.append(
+                    (role, round(percent, 1))
+                )
+
+            all_role_scores = sorted(
+                all_role_scores,
+                key = lambda x : x[1],
+                reverse = True
+            )
+
+            predicted_role = ROLE_DISPLAY_NAMES.get(
+                prediction,
+                prediction
+            )
+
+            match_score = None
+
+            for role, score in all_role_scores:
+                if role == job_role:
+                    match_score = score
+                    break
+
+            if match_score is None: 
+                raise ValueError(
+                    f"Selected role '{job_role}' was not found"
+                )
 
             with upload_tab:
                 st.success("Resume text extracted successfully.")
-
-                with st.expander("Original Resume"):
-                    st.text(resume_text[:2000])
-
-                with st.expander("Cleaned Resume"):
-                    st.text(cleaned_resume[:2000])
-
 
             with results_tab:
                 st.success("Analysis completed successfully.")
 
                 st.subheader("Compatibility Score")
                 st.metric(
-                    label="Role Compatbility Score",
+                    label="Role Compatibility Score",
                     value=f"{match_score}%",
                 )
 
