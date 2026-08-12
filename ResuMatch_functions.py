@@ -191,9 +191,9 @@ def worst_option_list(score_label):
 ###################################################################################################
 # Uncomment to test the code
 
-"""
+
 # Test code
-sample_title = "Sample_Resumes/Sample_Resume3.pdf"
+sample_title = "Sample_Resume3.pdf"
 cleaned_text = pdf_to_string(sample_title)
 model_name = "ResuMatch_LSV.pkl"
 
@@ -219,7 +219,7 @@ for weight, word in best_match_words:
     print(f'{index}. {word} -> {weight:.3f}')
     index += 1
 
-optimal_job_words = class_feat_extract(model_name, "Java Developers/Architects Resumes", 20)
+optimal_job_words = class_feat_extract(model_name, "Java Developers/Architects Resumes", 10)
 print()
 
 for weight, word in optimal_job_words:
@@ -228,5 +228,5 @@ for weight, word in optimal_job_words:
 
 print("\nOK!\n")
 
-"""
+
 

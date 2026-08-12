@@ -1,5 +1,5 @@
 import streamlit as st
-from ResuMatch_functions import ResuMatch_prediction, sigmoid_percent, pdf_to_string
+from ResuMatch_functions import ResuMatch_prediction, sigmoid_percent, pdf_to_string, resume_feat_extract, class_feat_extract
 
 
 st.set_page_config(
@@ -21,7 +21,7 @@ with upload_tab:
     with left_column:
         resume_file = st.file_uploader(
             "Upload your resume",
-            type = ["pdf", "docx", "txt"],
+            type = ["pdf"],
         )
 
     with right_column:
@@ -69,6 +69,31 @@ if analyze_button:
             prediction, score_label_list = ResuMatch_prediction(
                 "ResuMatch_LSV.pkl",
                 cleaned_resume
+            )
+
+            resume_features = resume_feat_extract(
+                "ResuMatch_LSV.pkl",
+                cleaned_resume,
+                prediction,
+                5
+            )
+
+            selected_role_model_label = {
+                "Business Analyst": "Business Analyst (BA) Resumes",
+                "Business Intelligence/Object": "Business Intelligence, Business Object Resumes",
+                "Datawarehousing": "Datawarehousing, ETL, Informatica Resumes",
+                "Java Developer": "Java Developers/Architects Resumes",
+                "Network/Systems Admin": "Network and Systems Administrators Resumes",
+                "Project Manager": "Project Manager Resumes",
+                "Recruiter": "Recruiter Resumes",
+                "SQL Developer": "SQL Developers Resumes",
+                "Web Developer": "Web Developer Resumes",
+            }[job_role]
+
+            job_features = class_feat_extract(
+                "ResuMatch_LSV.pkl",
+                selected_role_model_label,
+                5
             )
 
             all_role_scores =[]
@@ -145,6 +170,23 @@ if analyze_button:
                     The predicted job role is **{predicted_role}**.
                     """
                 )
+
+                st.divider()
+                st.subheader("Why this result?")
+
+                feature_col1, feature_col2 = st.columns(2)
+
+                with feature_col1:
+                    st.write("**Important words from your resume**")
+
+                    for weight, word in resume_features:
+                        st.write(f"• {word}")
+
+                with feature_col2:
+                    st.write(f"**Important words for {job_role}**")
+
+                    for weight, word in job_features:
+                        st.write(f"• {word}")                       
 
         except ValueError as error:
             st.error(str(error))
