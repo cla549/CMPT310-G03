@@ -36,12 +36,13 @@ print(f"Total Unique Vocabulary Learned: {len(tfidf.get_feature_names_out())} wo
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.feature_extraction.text import CountVectorizer
 
-count_vect = CountVectorizer()
+# Removes all common english words and all numerical values
+count_vect = CountVectorizer(stop_words='english', token_pattern=r'(?u)\b[A-Za-z][A-Za-z]+\b')
 X_train_counts = count_vect.fit_transform(X_train)
 X_test_counts = count_vect.transform(X_test)
 
-tfidf = TfidfTransformer().fit(X_train_counts) 
-X_train_tfidf = tfidf.transform(X_train_counts)
+tfidf = TfidfTransformer()#.fit(X_train_counts) 
+X_train_tfidf = tfidf.fit_transform(X_train_counts)
 X_test_tfidf = tfidf.transform(X_test_counts)
 print(f"TF-IDF Matrix Shape: {X_train_tfidf.shape}")
 print(f"Total Unique Vocabulary Learned: {len(tfidf.get_feature_names_out())} words")
@@ -111,12 +112,13 @@ plt.show()
 
 ##################################################################################################
 # Uncomment to save the model and vectorizer to disk
-'''
+
 import joblib
 
 artifacts = {
     "vectorizer": count_vect,
     "tfidf": tfidf,
-    "model": svc}
+    "model": svc
+}
 joblib.dump(artifacts, "ResuMatch_LSV.pkl")
-'''
+
