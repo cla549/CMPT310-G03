@@ -79,10 +79,10 @@ def ResuMatch_prediction(model: str, pdf_path: str):
     tfidf_text = loaded_tfidf.transform(vectorized_text)
     
     # Predict the job classification of the resume
-    resume_prediction = ResuMatch_model.predict(vectorized_text)[0]
+    resume_prediction = ResuMatch_model.predict(tfidf_text)[0]
 
     # Calculate the distance of the resume from the 9 possible job options
-    distance_score = ResuMatch_model.decision_function(vectorized_text)[0]
+    distance_score = ResuMatch_model.decision_function(tfidf_text)[0]
 
     # Combine the job labels with the scores for the resume
     score_label = []
@@ -97,7 +97,7 @@ def ResuMatch_prediction(model: str, pdf_path: str):
 
 # Using a sigmoid to calculate the percent likeness from the distance score
 def sigmoid_percent(x):
-    return 100 / (1 + np.exp(-x * 0.1))
+    return 100 / (1 + np.exp(-x * 1))
 
 # Takes the tuple list output of the prediction and returns a sorted tuple list of the best outcomes with the percentage score
 def best_option_list(score_label):
