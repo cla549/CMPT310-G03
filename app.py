@@ -1,6 +1,6 @@
 import streamlit as st
-from resume_reader import extract_resume_text
-from data_cleaning import clean_text
+from ResuMatch_functions import ResuMatch_prediction, sigmoid_percent, pdf_to_string, resume_feat_extract, class_feat_extract
+
 
 st.set_page_config(
     page_title = "🤖 ResuMatch",
@@ -9,7 +9,7 @@ st.set_page_config(
 )
 
 st.title("ResuMatch")
-st.write("Upload a resume and paste a job description to analyze how much they're compatible")
+st.write("Upload a resume and select a job role to analyze compatibility.")
 
 upload_tab, results_tab = st.tabs(["Upload", "Results"])
 
@@ -21,14 +21,23 @@ with upload_tab:
     with left_column:
         resume_file = st.file_uploader(
             "Upload your resume",
-            type = ["pdf", "docx", "txt"],
+            type = ["pdf"],
         )
 
     with right_column:
-        job_description = st.text_area(
-            "Paste the job description",
-            height = 250,
-            placeholder= "Paste the complete job description here...", 
+        job_role = st.selectbox(
+            "Select a job role",
+            [
+                "Business Analyst",
+                "Business Intelligence/Object",
+                "Datawarehousing",
+                "Java Developer",
+                "Network/Systems Admin",
+                "Project Manager",
+                "Recruiter",
+                "SQL Developer",
+                "Web Developer",
+            ],
         )
 
     analyze_button = st.button(
@@ -36,59 +45,109 @@ with upload_tab:
         type = "primary",
     )
 
+ROLE_DISPLAY_NAMES = {
+    "Business Analyst (BA) Resumes": "Business Analyst",
+    "Business Intelligence, Business Object Resumes": "Business Intelligence/Object",
+    "Datawarehousing, ETL, Informatica Resumes": "Datawarehousing",
+    "Java Developers/Architects Resumes": "Java Developer",
+    "Network and Systems Administrators Resumes": "Network/Systems Admin",
+    "Project Manager Resumes": "Project Manager",
+    "Recruiter Resumes": "Recruiter",
+    "SQL Developers Resumes": "SQL Developer",
+    "Web Developer Resumes": "Web Developer",
+}
 
 
 if analyze_button:
     if resume_file is None:
         st.error("Please upload a Resume.")
 
-    elif not job_description.strip():
-        st.error("Please enter a job description.")
-
     else:
         try:
-            resume_text = extract_resume_text(resume_file)
-            cleaned_resume = clean_text(resume_text)
-            cleaned_job = clean_text(job_description)
+            cleaned_resume = pdf_to_string(resume_file)
+            
+            prediction, score_label_list = ResuMatch_prediction(
+                "ResuMatch_LSV.pkl",
+                cleaned_resume
+            )
+
+            resume_features = resume_feat_extract(
+                "ResuMatch_LSV.pkl",
+                cleaned_resume,
+                prediction,
+                5
+            )
+
+            selected_role_model_label = {
+                "Business Analyst": "Business Analyst (BA) Resumes",
+                "Business Intelligence/Object": "Business Intelligence, Business Object Resumes",
+                "Datawarehousing": "Datawarehousing, ETL, Informatica Resumes",
+                "Java Developer": "Java Developers/Architects Resumes",
+                "Network/Systems Admin": "Network and Systems Administrators Resumes",
+                "Project Manager": "Project Manager Resumes",
+                "Recruiter": "Recruiter Resumes",
+                "SQL Developer": "SQL Developers Resumes",
+                "Web Developer": "Web Developer Resumes",
+            }[job_role]
+
+            job_features = class_feat_extract(
+                "ResuMatch_LSV.pkl",
+                selected_role_model_label,
+                5
+            )
+
+            all_role_scores =[]
+
+            for score, role in score_label_list:
+                percent = sigmoid_percent(score)
+                all_role_scores.append(
+                    (role, round(percent, 1))
+                )
+
+            all_role_scores = sorted(
+                all_role_scores,
+                key = lambda x : x[1],
+                reverse = True
+            )
+
+            predicted_role = ROLE_DISPLAY_NAMES.get(
+                prediction,
+                prediction
+            )
+
+            match_score = None
+
+            for role, score in all_role_scores:
+                if role == job_role:
+                    match_score = score
+                    break
+
+            if match_score is None: 
+                raise ValueError(
+                    f"Selected role '{job_role}' was not found"
+                )
 
             with upload_tab:
                 st.success("Resume text extracted successfully.")
-
-                with st.expander("Original Resume"):
-                    st.text(resume_text[:2000])
-
-                with st.expander("Cleaned Resume"):
-                    st.text(cleaned_resume[:2000])
-
-            # Placeholder results for now
-            match_score = 82
-            predicted_role = "Data Scientist"
-
-            matched_skills = [
-                "Python",
-                "SQL",
-                "Machine Learning",
-            ]
-
-            missing_skills = [
-                "Docker",
-                "AWS",
-            ]
 
             with results_tab:
                 st.success("Analysis completed successfully.")
 
                 st.subheader("Compatibility Score")
                 st.metric(
-                    label="Match Score",
+                    label="Role Compatibility Score",
                     value=f"{match_score}%",
                 )
 
+                with st.expander("Compatibility Across Job Roles"):
+                    for role, score in all_role_scores:
+                        st.write(f"{role}: {score}%")
+
                 st.progress(match_score / 100)
 
-                if match_score >= 75:
+                if match_score >= 60:
                     st.success("Overall result: Good Match")
-                elif match_score >= 50:
+                elif match_score >= 40:
                     st.warning("Overall result: Moderate Match")
                 else:
                     st.error("Overall result: Poor Match")
@@ -104,25 +163,30 @@ if analyze_button:
                 with score_column:
                     st.subheader("Match Summary")
                     st.write(
-                        f"The resume matches approximately "
-                        f"**{match_score}%** of the job description."
-                    )
+                        f"""
+                    The uploaded resume has a compatibility score of 
+                    **{match_score}%** with the selected **{job_role}** role. 
+
+                    The predicted job role is **{predicted_role}**.
+                    """
+                )
 
                 st.divider()
+                st.subheader("Why this result?")
 
-                matched_column, missing_column = st.columns(2)
+                feature_col1, feature_col2 = st.columns(2)
 
-                with matched_column:
-                    st.subheader("Matched Skills")
+                with feature_col1:
+                    st.write("**Important words from your resume**")
 
-                    for skill in matched_skills:
-                        st.write(f"✅ {skill}")
+                    for weight, word in resume_features:
+                        st.write(f"• {word}")
 
-                with missing_column:
-                    st.subheader("Missing Skills")
+                with feature_col2:
+                    st.write(f"**Important words for {job_role}**")
 
-                    for skill in missing_skills:
-                        st.write(f"❌ {skill}")
+                    for weight, word in job_features:
+                        st.write(f"• {word}")                       
 
         except ValueError as error:
             st.error(str(error))

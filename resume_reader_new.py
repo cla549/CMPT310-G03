@@ -230,6 +230,19 @@ def parse_resume_by_x_density(pdf_path):
         final_sections = merge_blocks_by_type(raw_blocks_info)
         return final_sections
 
+def extract_resume_text(file):
+    sections = parse_resume_by_x_density(file)
+
+    if not sections:
+        return "" 
+
+    resume = "\n".join(
+        section["text"]
+        for section in sections 
+        if section.get("text")
+    )
+    return resume
+
 def extract_resume_features(merged_sections):
     section_map = {sec['category']: sec['text'] for sec in merged_sections}
     
