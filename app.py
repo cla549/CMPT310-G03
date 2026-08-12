@@ -1,5 +1,5 @@
 import streamlit as st
-from ResuMatch_functions import ResuMatch_prediction, sigmoid_percent
+from ResuMatch_functions import ResuMatch_prediction, sigmoid_percent, pdf_to_string
 
 
 st.set_page_config(
@@ -64,9 +64,11 @@ if analyze_button:
 
     else:
         try:
+            cleaned_resume = pdf_to_string(resume_file)
+            
             prediction, score_label_list = ResuMatch_prediction(
                 "ResuMatch_LSV.pkl",
-                resume_file
+                cleaned_resume
             )
 
             all_role_scores =[]
